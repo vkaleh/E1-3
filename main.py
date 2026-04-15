@@ -1,4 +1,5 @@
 import time
+import json
 
 EPSILON = 1e-9
 
@@ -59,7 +60,6 @@ def compare_scores_mode1(a, b):
     return "A" if a > b else "B"
 
 
-# ==================== 입력 처리 ====================
 def input_matrix(n, name):
     print(f"{name} ({n}줄 입력, 공백 구분)")
     matrix = []
@@ -75,7 +75,107 @@ def input_matrix(n, name):
             return matrix
         except:
             print("입력 형식 오류 : 각 줄에 {}개의 숫자를 공백으로 구분해 입력하세요.".format(n))
-        
+
+
+# ==================== 모드 2 ====================
+def mode_json():
+    try:
+        data = load_json()
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"[오류] {e}")
+        print("프로그램을 종료합니다.\n")
+        return
+
+    print("---------------------------------")
+    print("[1] 필터 로드")
+    print("---------------------------------")
+
+    filters = {}
+    for key, value in data["filters"].items():
+        size = int(key.split("_")[1])
+
+        filters[size] = {}
+        for fkey, fval in value.items():
+            filters[size][normalize_label(fkey)] = fval
+
+        print(f"{key} 필터 로드 완료 (Cross, X)\n")
+
+    print("---------------------------------")
+    print("[2] 패턴 분석 (라벨 정규화 적용)")
+    print("---------------------------------")
+
+    total = 0
+    passed = 0
+    failed_cases = []
+
+    for key, value in data["patterns"].items():
+        print(f"— {key} —")
+        total += 1
+
+        try:
+            parts = key.split("_")
+            size = int(parts[1])
+
+            pattern = value["input"]
+            expected = normalize_label(value["expected"])
+
+            if size not in filters:
+                raise Exception("필터 없음")
+
+            f_cross = filters[size]["Cross"]
+            f_x = filters[size]["X"]
+
+            if not validate_size(pattern, f_cross):
+                raise Exception("행/열 수 불일치")
+
+            score_cross = mac_operation(pattern, f_cross)
+            score_x = mac_operation(pattern, f_x)
+
+            result = compare_scores_mode2(score_cross, score_x)
+            if result == "UNDECIDED":
+                raise Exception("동점 규칙")
+
+            is_pass = (result == expected)
+
+            print(f"Cross 점수 : {score_cross}")
+            print(f"X 점수 : {score_x}")
+            print(f"판정 : {result} | expected: {expected} | {'PASS' if is_pass else 'FAIL'}\n")
+
+            if is_pass:
+                passed += 1
+            else:
+                raise Exception("기대값 불일치")
+
+        except Exception as e:
+            print(f"FAIL ({str(e)})\n")
+            failed_cases.append((key, str(e)))
+
+
+def load_json():
+    with open("data.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+    
+
+# 라벨 정규화 
+def normalize_label(label: str) -> str:
+    label = label.lower()
+    if label in ["+", "cross"]:
+        return "Cross"
+    elif label in ["x"]:
+        return "X"
+    return "UNKNOWN"
+
+
+def validate_size(pattern, filter):
+    return len(pattern) == len(filter) and len(pattern[0]) == len(filter[0])
+
+
+def compare_scores_mode2(cross_score, x_score):
+    # Cross vs X
+    if abs(cross_score - x_score) < EPSILON:
+        return "UNDECIDED"
+    return "Cross" if cross_score > x_score else "X"
+    
 
 # ==================== 메인 ====================
 def main():
@@ -90,7 +190,7 @@ def main():
     if choice == "1":
         mode_user_input()
     elif choice == "2":
-        print("data.json 분석 모드")
+        mode_json()
     else:
         print("잘못된 입력입니다.")
 
