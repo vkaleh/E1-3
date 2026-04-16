@@ -163,6 +163,18 @@ def mode_json():
     # size별 시간 누적용
     perf_data = {}
 
+    # 3x3 성능 측정
+    size = 3
+    pattern3x3 = [[1.0]*size for _ in range(size)]
+    filter3x3 = [[1.0]*size for _ in range(size)]
+
+    if size not in perf_data:
+        perf_data[size] = []
+
+    avg_time = measure_time(pattern3x3, filter3x3)
+    perf_data[size].append(avg_time)
+
+    # 5x5, 13x13, 25x25 성능 측정 
     for key, value in data["patterns"].items():
         try:
             parts = key.split("_")      # size_5_1 -> [size, 5, 1]
@@ -198,6 +210,18 @@ def mode_json():
         times = perf_data[size]
         avg = sum(times) / len(times)
         print(f"{size}x{size}\t{avg:.6f}\t{size*size}")
+
+    print("\n---------------------------------")
+    print("[4] 결과 요약")
+    print("---------------------------------")
+    print(f"총 테스트 : {total}개")
+    print(f"통과 : {passed}개")
+    print(f"실패 : {total - passed}개")
+
+    if failed_cases:
+        print("\n실패 케이스:")
+        for case, reason in failed_cases:
+            print(f"- {case} : {reason}")
 
 
 def load_json():
