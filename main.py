@@ -4,21 +4,38 @@ import json
 EPSILON = 1e-9
 
 # ==================== 기능 관련 ====================
-def measure_time(pattern, filter, repeat=10):
+def measure_time(func, pattern, filter, repeat=10):
     start = time.perf_counter()
     for _ in range(repeat):
-        mac_operation(pattern, filter)
+        func(pattern, filter)
     end = time.perf_counter()
-    return (end - start) * 1000 / repeat  # ms
+    return (end - start) * 1000 / repeat    # ms 
 
 
-def mac_operation(pattern, filter):
+def mac_operation_2d(pattern, filter):
     total = 0.0
     n = len(pattern)
     for i in range(n):
         for j in range(n):
             total += pattern[i][j] * filter[i][j]
     return total
+
+
+def mac_operation_1d(pattern_1d, filter_1d):
+    total = 0.0
+    size = len(pattern_1d)
+    for i in range(size):
+        total += pattern_1d[i] * filter_1d[i]
+    return total
+
+
+# 2D -> 1D 변환 함수
+def flatten(matrix):
+    flat = []
+    for row in matrix:
+        for val in row:
+            flat.append(val)
+    return flat
 
 
 # ==================== 모드 1 ====================
@@ -34,9 +51,9 @@ def mode_user_input():
     print("---------------------------------")
     P = input_matrix(3, "패턴")
 
-    score_a = mac_operation(P, A)
-    score_b = mac_operation(P, B)
-    avg_time = (measure_time(P, A) + measure_time(P, B)) / 2
+    score_a = mac_operation_2d(P, A)
+    score_b = mac_operation_2d(P, B)
+    avg_time = (measure_time(mac_operation_2d, P, A) + measure_time(mac_operation_2d, P, B)) / 2
 
     result = compare_scores_mode1(score_a, score_b)
 
@@ -130,8 +147,8 @@ def mode_json():
             if size not in filters:
                 fail_reason = "행/열 수 불일치"
 
-            score_cross = mac_operation(pattern, f_cross)
-            score_x = mac_operation(pattern, f_x)
+            score_cross = mac_operation_2d(pattern, f_cross)
+            score_x = mac_operation_2d(pattern, f_x)
 
             result = compare_scores_mode2(score_cross, score_x)
             if result == "UNDECIDED":
@@ -158,21 +175,29 @@ def mode_json():
     print("---------------------------------")
     print("[3] 성능 분석 (평균/10회)")
     print("---------------------------------")
-    print("크기\t평균 시간(ms)\t연산 횟수")
+    print("크기\t2D 평균 시간\t1D 평균 시간\t연산 횟수")
 
     # size별 시간 누적용
-    perf_data = {}
+    perf_data = {
+        # size: { "2d": [...], "1d": [...] }
+    }
 
     # 3x3 성능 측정
     size = 3
     pattern3x3 = [[1.0]*size for _ in range(size)]
     filter3x3 = [[1.0]*size for _ in range(size)]
 
-    if size not in perf_data:
-        perf_data[size] = []
+    pattern3x3_1d = flatten(pattern3x3)
+    filter3x3_1d = flatten(filter3x3)
 
-    avg_time = measure_time(pattern3x3, filter3x3)
-    perf_data[size].append(avg_time)
+    if size not in perf_data:
+        perf_data[size] = {"2d": [], "1d": []}
+
+    avg_time_2d = measure_time(mac_operation_2d, pattern3x3, filter3x3)
+    avg_time_1d = measure_time(mac_operation_1d, pattern3x3_1d, filter3x3_1d)
+    
+    perf_data[size]["2d"].append(avg_time_2d)
+    perf_data[size]["1d"].append(avg_time_1d)
 
     # 5x5, 13x13, 25x25 성능 측정 
     for key, value in data["patterns"].items():
@@ -181,6 +206,7 @@ def mode_json():
             size = int(parts[1])
 
             pattern = value["input"]
+            pattern_1d = flatten(pattern)
 
             # 해당되는 사이즈의 필터가 없으면 넘어감 
             if size not in filters:
@@ -189,27 +215,39 @@ def mode_json():
             crossFilter = filters[size]["Cross"]
             xFilter = filters[size]["X"]
 
+            crossFilter_1d = flatten(crossFilter)
+            xFilter_1d = flatten(xFilter)
+
             if not validate_size(pattern, crossFilter) or not validate_size(pattern, xFilter):
                 continue
 
             # 시간 측정
-            avg_time_cross = measure_time(pattern, crossFilter)
-            avg_time_x = measure_time(pattern, xFilter)
-            avg_time = (avg_time_cross + avg_time_x) / 2
+            avg_time_cross_2d = measure_time(mac_operation_2d, pattern, crossFilter)
+            avg_time_x_2d = measure_time(mac_operation_2d, pattern, xFilter)
+            avg_time_2d = (avg_time_cross_2d + avg_time_x_2d) / 2
+
+            avg_time_cross_1d = measure_time(mac_operation_1d, pattern_1d, crossFilter_1d)
+            avg_time_x_1d = measure_time(mac_operation_1d, pattern_1d, xFilter_1d)
+            avg_time_1d = (avg_time_cross_1d + avg_time_x_1d) / 2
 
             if size not in perf_data:
-                perf_data[size] = []
+                perf_data[size] = {"2d": [], "1d": []}
 
-            perf_data[size].append(avg_time)
+            perf_data[size]["2d"].append(avg_time_2d)
+            perf_data[size]["1d"].append(avg_time_1d)
 
         except:
             continue
 
     # 결과 출력 (size별 평균)
     for size in sorted(perf_data.keys()):
-        times = perf_data[size]
-        avg = sum(times) / len(times)
-        print(f"{size}x{size}\t{avg:.6f}\t{size*size}")
+        times_2d = perf_data[size]["2d"]
+        times_1d = perf_data[size]["1d"]
+
+        avg_2d = sum(times_2d) / len(times_2d)
+        avg_1d = sum(times_1d) / len(times_1d)
+
+        print(f"{size}x{size}\t{avg_2d:.6f}\t{avg_1d:.6f}\t{size*size}")
 
     print("\n---------------------------------")
     print("[4] 결과 요약")
