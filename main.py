@@ -112,43 +112,92 @@ def mode_json():
         print(f"— {key} —")
         total += 1
 
+        is_pass = False
+        fail_reason = ""
+
         try:
             parts = key.split("_")
             size = int(parts[1])
-
             pattern = value["input"]
             expected = normalize_label(value["expected"])
 
             if size not in filters:
-                raise Exception("필터 없음")
+                fail_reason = "필터 없음"
 
             f_cross = filters[size]["Cross"]
             f_x = filters[size]["X"]
 
-            if not validate_size(pattern, f_cross):
-                raise Exception("행/열 수 불일치")
+            if size not in filters:
+                fail_reason = "행/열 수 불일치"
 
             score_cross = mac_operation(pattern, f_cross)
             score_x = mac_operation(pattern, f_x)
 
             result = compare_scores_mode2(score_cross, score_x)
             if result == "UNDECIDED":
-                raise Exception("동점 규칙")
-
-            is_pass = (result == expected)
-
-            print(f"Cross 점수 : {score_cross}")
-            print(f"X 점수 : {score_x}")
-            print(f"판정 : {result} | expected: {expected} | {'PASS' if is_pass else 'FAIL'}\n")
-
-            if is_pass:
+                fail_reason = "동점 규칙"
+            elif result == expected:
+                is_pass = True
                 passed += 1
             else:
-                raise Exception("기대값 불일치")
+                fail_reason = "기대값 불일치"
 
         except Exception as e:
-            print(f"FAIL ({str(e)})\n")
-            failed_cases.append((key, str(e)))
+            fail_reason = f"{e}"
+
+        # 성공/실패 여부와 관계없이 계산된 값들을 모두 출력
+        print(f"Cross 점수 : {score_cross}")
+        print(f"X 점수 : {score_x}")
+
+        if not is_pass:
+            print(f"판정 : {result} | expected: {expected} | FAIL ({fail_reason})\n")
+            failed_cases.append((key, fail_reason))
+        else:
+            print(f"판정 : {result} | expected: {expected} | PASS\n")
+            
+    print("---------------------------------")
+    print("[3] 성능 분석 (평균/10회)")
+    print("---------------------------------")
+    print("크기\t평균 시간(ms)\t연산 횟수")
+
+    # size별 시간 누적용
+    perf_data = {}
+
+    for key, value in data["patterns"].items():
+        try:
+            parts = key.split("_")      # size_5_1 -> [size, 5, 1]
+            size = int(parts[1])
+
+            pattern = value["input"]
+
+            # 해당되는 사이즈의 필터가 없으면 넘어감 
+            if size not in filters:
+                continue
+
+            crossFilter = filters[size]["Cross"]
+            xFilter = filters[size]["X"]
+
+            if not validate_size(pattern, crossFilter) or not validate_size(pattern, xFilter):
+                continue
+
+            # 시간 측정
+            avg_time_cross = measure_time(pattern, crossFilter)
+            avg_time_x = measure_time(pattern, xFilter)
+            avg_time = (avg_time_cross + avg_time_x) / 2
+
+            if size not in perf_data:
+                perf_data[size] = []
+
+            perf_data[size].append(avg_time)
+
+        except:
+            continue
+
+    # 결과 출력 (size별 평균)
+    for size in sorted(perf_data.keys()):
+        times = perf_data[size]
+        avg = sum(times) / len(times)
+        print(f"{size}x{size}\t{avg:.6f}\t{size*size}")
 
 
 def load_json():
