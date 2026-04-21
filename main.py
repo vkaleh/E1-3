@@ -107,15 +107,22 @@ def mode_json():
     print("[1] 필터 로드")
     print("---------------------------------")
 
+    target_sizes = [3, 5, 13, 25]
+
     filters = {}
-    for key, value in data["filters"].items():
-        size = int(key.split("_")[1])
+    for size in target_sizes:
+        filter_key = f"size_{size}"                # 찾고자 하는 키
 
-        filters[size] = {}
-        for fkey, fval in value.items():
-            filters[size][normalize_label(fkey)] = fval
+        # filters 안에 해당 키가 있는지 확인
+        if filter_key in data["filters"]:
+            value =  data["filters"][filter_key]
 
-        print(f"{key} 필터 로드 완료 (Cross, X)\n")
+            filters[size] = {}
+            for fkey, fval in value.items():
+                filters[size][normalize_label(fkey)] = fval
+            print(f"{filter_key} 필터 로드 완료 (Cross, X)\n")
+        else:
+            print(f"(size {size}에 해당하는 필터 없음)\n")
 
     print("---------------------------------")
     print("[2] 패턴 분석 (라벨 정규화 적용)")
@@ -131,6 +138,9 @@ def mode_json():
 
         is_pass = False
         fail_reason = ""
+        score_cross = 0
+        score_x = 0
+        result = ""
 
         try:
             parts = key.split("_")
@@ -138,19 +148,22 @@ def mode_json():
             pattern = value["input"]
             expected = normalize_label(value["expected"])
 
-            if size not in filters:
-                fail_reason = "필터 없음"
+            if not pattern or not pattern[0]:
+                fail_reason = "빈 데이터"
+            elif len(pattern) != size or len(pattern[0]) != size:
+                fail_reason = "행/열 수 불일치"
+
+            # 데이터 검증을 통과하지 못한 경우 바로 예외 발생
+            if fail_reason:
+                raise ValueError(fail_reason)
 
             f_cross = filters[size]["Cross"]
             f_x = filters[size]["X"]
-
-            if size not in filters:
-                fail_reason = "행/열 수 불일치"
-
+                
             score_cross = mac_operation_2d(pattern, f_cross)
             score_x = mac_operation_2d(pattern, f_x)
-
             result = compare_scores_mode2(score_cross, score_x)
+
             if result == "UNDECIDED":
                 fail_reason = "동점 규칙"
             elif result == expected:
