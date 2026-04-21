@@ -3,6 +3,7 @@
 ## 1. 프로젝트 개요
 MAC 연산을 구현하여 패턴과 필터 간 유사도를 계산하고, 3x3부터 25x25까지 다양한 크기의 데이터를 판별하는 mini NPU 시뮬레이터를 개발하는 프로젝트이다. <br>
 데이터 크기에 따라 연산 시간이 어떻게 변하는지 직접 계산해보고, 구현 과정에서 발생하는 문제를 해결해본다. 
+<p align="center">&nbsp;</p>
 
 ## 2. 실행 방법
 Python version : 3.12.13
@@ -36,9 +37,97 @@ E1-3
 - data.json에 정의된 필터와 패턴을 자동으로 로드
 - 각 케이스별 MAC 점수, 판정 결과(Cross/X/UNDECIDED), expected 대비 PASS/FAIL 출력
 - 전체 성능 분석 및 결과 요약(통과/실패) 제공
-
+<p align="center">&nbsp;</p>
 
 ## 3. 구현 방법
+### 3-1. 라벨 정규화 방식
+```bash
+def normalize_label(label: str) -> str:
+    label = label.lower()
+    if label in ["+", "cross"]:
+        return "Cross"
+    elif label in ["x"]:
+        return "X"
+    return "UNKNOWN"
+```
+입력 데이터의 라벨 표기법이 달라도 같게 처리하기 위해 텍스트를 정규화함 <br>
+라벨을 모두 소문자로 바꿔서 +나 cross 라면 Cross 로 바꿔주는 등의 방식을 사용했지만 <br>
+
+```bash
+    if label in ["+", "Cross", "cross"]:
+        return "Cross"
+```
+하는 방식도 있음 
+<p align="center">&nbsp;</p>
+
+### 3-2. MAC 연산
+```bash
+def mac_operation_2d(pattern, filter):
+    total = 0.0
+    n = len(pattern)
+    for i in range(n):
+        for j in range(n):
+            total += pattern[i][j] * filter[i][j]
+    return total
+```
+
+```bash
+def mac_operation_1d(pattern_1d, filter_1d):
+    total = 0.0
+    size = len(pattern_1d)
+    for i in range(size):
+        total += pattern_1d[i] * filter_1d[i]
+    return total
+```
+패턴 매칭 및 스코어 계산을 위해 각 요소의 곱을 모두 더함
+<p align="center">&nbsp;</p>
+
+### 3-3. 동점 처리 정책 (epsilon)
+```bash
+def compare_scores_mode1(a, b):
+    # A vs B
+    if abs(a - b) < EPSILON:
+        return "UNDECIDED"
+    return "A" if a > b else "B"
+```
+
+```bash
+def compare_scores_mode2(cross_score, x_score):
+    # Cross vs X
+    if abs(cross_score - x_score) < EPSILON:
+        return "UNDECIDED"
+    return "Cross" if cross_score > x_score else "X"
+```
+컴퓨터는 모든 숫자를 0과 1로 저장하므로 10진수 소수는 이진수로 변환할 때 무한 소수가 되는 경우가 많음 
+<p>
+    <img width="702" height="240" alt="Screenshot 2026-04-21 at 1 51 26 PM" src="https://github.com/user-attachments/assets/a59352c8-da3f-4c33-a006-ab722bc13a21" />
+</p>
+0.1과 0.2를 이진수로 바꾸면 무한 소수가 되는데, 컴퓨터가 메모리 한계 상 중간에 잘라버리는(Rounding Error) 과정에서 미세한 찌꺼기 값이 남아있게됨 <br>
+0.0001100110011 ... 이런 무한한 소수를 저장할 공간이 부족하므로 뒤를 강제로 자르는데, 마지막 비트에서 반올림이 발생할 때 원래 값보다 미세하게 크거나 작은 값이 저장됨  <br>
+
+그래서 이 정도면 같다고 치자~ 같은 마인드로 Epsilon을 사용함  <br>
+우리가 허용할 수 있는 최소한의 오차 범위를 두는 것임  <br>
+<p align="center">&nbsp;</p>
+
+#### **Epsilon 외에 오차를 다루는 다른 방식들**
+- 정수 연산 : 소수점 이하 자릿수를 없애기 위해 전체에 100이나 1000을 곱해 정수로 변환하여 계산한 뒤, 마지막에 다시 나누는 방식
+  
+- 분수 연산 : 숫자를 소수가 아닌 분수 형태로 저장 (0.3333... 대신 1/3로 저장)
+<p>
+    <img width="911" height="259" alt="Screenshot 2026-04-21 at 2 05 48 PM" src="https://github.com/user-attachments/assets/72a5da77-be83-48f6-96e1-bb27a92af9f0" />
+</p>
+<br>
+
+- Decimal 연산 : 10진법 계산 방식
+<p>
+    <img width="701" height="234" alt="Screenshot 2026-04-21 at 2 04 09 PM" src="https://github.com/user-attachments/assets/c48da989-12f1-4ba9-8102-cc426ab2bbf5" />
+</p>
+<br>
+
+- 가변 엡실론 : 두 수의 크기에 비례해서 오차 범위를 유동적으로 조절하는 방식 (고정된 엡실론(1e-9)은 숫자가 아주 작을 때는 너무 큰 오차가 되고, 숫자가 수조 단위로 클 때는 너무 작은 오차가 되므로)
+<br>
+<p align="center">&nbsp;</p>
+
 
 ## 4. 결과 리포트 
 ### 4-1. 실패 케이스 
