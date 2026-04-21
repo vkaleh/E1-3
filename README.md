@@ -52,16 +52,39 @@ E1-3
 
 2D 배열 방식은 리스트 안에 리스트가 있는 구조여서 추가 인덱싱이 발생하지만, <br>
 1D 배열 방식은 연속된 메모리에 접근하여 CPU 캐시 활용 효율이 증가해서 속도가 향상된 것으로 보인다. 
-
+<p align="center">&nbsp;</p>
 
 ## 5. 트러블슈팅
-- data.json 패턴 size_25_1 중에서 
+### 5-1. 데이터 행/열 수 불일치 
+data.json 패턴 size_25_1 중에서 
 <p>
     <img width="620" height="103" alt="Screenshot 2026-04-16 at 11 58 34 AM" src="https://github.com/user-attachments/assets/a81d3ff9-dcbe-4348-8c53-37c463d8150a" />
 </p>
 X 필터인데도 Cross로 판정되는 오류가 발생했음 <br>
 알고보니 행 수가 1개 부족했던 것이었고, <br>
 패턴을 자동으로 생성하는 기능의 필요성을 느꼈음 
+
+<p align="center">&nbsp;</p>
+
+### 5-2. 빈 데이터 
+<p>
+    <img width="148" height="183" alt="Screenshot 2026-04-21 at 8 27 49 AM" src="https://github.com/user-attachments/assets/133cd3ae-287e-41db-a76e-b9b0adae4575" />
+</p>
+
+데이터가 비어있을 경우, 
+
+<p>
+    <img width="483" height="66" alt="Screenshot 2026-04-21 at 8 20 31 AM" src="https://github.com/user-attachments/assets/9883e5d3-ed02-485c-ba54-c132446eb5b8" />
+</p>
+
+실패원인이 list out of range 로 뜨길래 
+
+<p>
+    <img width="396" height="80" alt="Screenshot 2026-04-21 at 9 20 54 AM" src="https://github.com/user-attachments/assets/793a8424-1876-4985-8547-8ac52fb6fee8" />
+</p>
+빈 데이터가 나오는 경우를 추가하여 처리했음 
+
+<p align="center">&nbsp;</p>
 
 ## 6. 보충 설명 
 ### 모드 1 입력 검증 
