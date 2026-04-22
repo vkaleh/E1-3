@@ -131,7 +131,52 @@ def compare_scores_mode2(cross_score, x_score):
 
 ## 4. 결과 리포트 
 ### 4-1. 실패 케이스 
-원인 
+- 1번 
+<p>
+    <img width="156" height="184" alt="Screenshot 2026-04-22 at 12 53 56 PM" src="https://github.com/user-attachments/assets/b09e1c8f-520d-40bc-819e-a98fddd2ea59" />
+</p>
+실패 원인 : 입력 데이터가 +와 x 패턴을 모두 갖고 있어 두 패턴 중 하나로 분류하기 위한 점수 차이가 나지 않았음 <br>
+알고리즘 내부적으로 계산된 값들이 허용 오차($\epsilon$) 범위 내에 있어, Cross 점수와 X 점수 모두 '동일한 값'으로 판단함 <br>
+결과적으로 압도적인 우위를 점한 후보가 없어 동점 규정(Tie rule)에 따라 undecided로 처리됨 <br>
+<br>
+
+- 2번
+<p>
+    <img width="156" height="184" alt="Screenshot 2026-04-22 at 1 01 59 PM" src="https://github.com/user-attachments/assets/0b7cb4b6-9600-466d-a36b-0c7fdd545691" />
+</p>
+실패 원인 : 사각형 테두리와 중심점으로 구성되어 있어, '+' 형태와 사각형 형태의 특징이 섞여 있음 <br>
+모델이 특징을 추출할 때 각 특징값의 차이가 epsilon$보다 작게 계산되면서, 특정 클래스로 확정 짓지 못하는 문제가 발생함 <br>
+위와 마찬가지로 Cross 점수와 X 점수가 같아서, 동점 규칙에 의해 undecided로 처리됨 <br>
+<br>
+
+- 3번
+<p>
+    <img width="151" height="183" alt="Screenshot 2026-04-22 at 1 03 12 PM" src="https://github.com/user-attachments/assets/2dd66da1-9dcc-4a2a-9e56-cf02e29563d3" />
+</p>
+실패 원인 : 입력 배열이 완전히 비어 있는 상태([])로 들어왔음 <br>
+연산을 수행할 기초 데이터가 없으므로 오차 범위를 따지기도 전에 판단 근거가 부족하여 undecided로 처리됨 <br>
+<br>
+
+- 4번
+<p>
+    <img width="148" height="165" alt="Screenshot 2026-04-22 at 1 04 58 PM" src="https://github.com/user-attachments/assets/548a09b9-1b0a-454f-869d-63c4b7cd38cd" />
+</p>
+실패 원인 : 명칭은 size_5 계열이지만, 실제 입력된 데이터는 4x4 행렬임 <br>
+행/열 수의 불일치로 인해 undecided로 처리됨 <br>
+<br>
+
+
+- 시간 복잡도 분석
+
+자주 호출되는 핵심 함수들의 복잡도
+
+| 함수 | 설명 | 시간 복잡도 |
+|:---:|:---:|:---:|
+| **mac_operation_2d(pattern, filter)** | N x N 크기의 2차원 배열을 이중 루프로 순회 | O(N^2) |
+| **mac_operation_1d(pattern_1d, filter_1d)** | 길이가 N^2$인 1차원 배열을 한 번 순회 | O(N^2) |
+| **flatten(matrix)** | 2차원 배열의 모든 요소를 새로운 리스트에 담음  | O(N^2) |
+| **measure_time(func, ..., repeat=10)** | 전달받은 함수를 repeat 횟수만큼 반복 | O(N^2) |
+<br>
 
 ### 4-2. 최적화 전/후 성능 비교
 <p>
@@ -196,17 +241,17 @@ def input_matrix(n, name):
         except:
             print("입력 형식 오류 : 각 줄에 {}개의 숫자를 공백으로 구분해 입력하세요.".format(n))
 ```
-- n번만큼 행 입력을 받게 강제해서 행 개수 검증
+n번만큼 행 입력을 받게 강제해서 행 개수 검증
 
 <br>
 
-- 숫자 파싱 검증 : <br>
+### 숫자 파싱 검증 : <br>
 map(float, ...) : 리스트의 각 요소를 float()에 전달 <br>
 문자가 입력되면 float() 때문에 ValueError 발생
 
 <br>
 
-- TypeError VS ValueError
+### TypeError VS ValueError
 
 | 에러 유형 | 발생 상황 | 예시 |
 |:---:|:---:|:---:|
@@ -215,7 +260,7 @@ map(float, ...) : 리스트의 각 요소를 float()에 전달 <br>
 
 <br>
 
-- list(map(float, input().split())) 흐름
+### list(map(float, input().split())) 흐름
 
 | 코드 | 결과 | 
 |:---:|:---:|
