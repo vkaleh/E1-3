@@ -155,6 +155,7 @@ def mode_json():
 
             # 데이터 검증을 통과하지 못한 경우 바로 예외 발생
             if fail_reason:
+                result == "UNDECIDED"
                 raise ValueError(fail_reason)
 
             f_cross = filters[size]["Cross"]
